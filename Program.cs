@@ -124,7 +124,11 @@ var app = builder.Build();
 if (isDevelopment == "true")
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Catatan API V1");
+        c.RoutePrefix = string.Empty; // Set to "" untuk akses di root domain (https://domain.com/)
+    });
 }
 
 app.UseHttpsRedirection();
