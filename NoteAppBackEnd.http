@@ -1,0 +1,6 @@
+@NoteAppBackEnd_HostAddress = http://localhost:5144
+
+GET {{NoteAppBackEnd_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

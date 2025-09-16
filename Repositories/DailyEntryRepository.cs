@@ -1,0 +1,186 @@
+﻿using Microsoft.Data.SqlClient;
+using NoteAppBackEnd.Models;
+using System.Data;
+
+namespace NoteAppBackEnd.Repositories
+{
+    public class DailyEntryRepository
+    {
+        private readonly SqlConnection _connection;
+        private readonly SqlTransaction _transaction;
+
+        public DailyEntryRepository(SqlConnection connection, SqlTransaction transaction)
+        {
+            _connection = connection;
+            _transaction = transaction;
+        }
+
+        public int Insert(DailyEntry entry)
+        {
+            using var command = CreateCommand("insert");
+            command.Parameters.AddWithValue("@Date", entry.Date);
+            command.Parameters.AddWithValue("@Content", entry.Content);
+            command.Parameters.AddWithValue("@Title_Note", entry.Title_Note);
+            command.Parameters.AddWithValue("@WH_start", entry.WH_start);
+            command.Parameters.AddWithValue("@WH_end", entry.WH_end);
+            command.Parameters.AddWithValue("@OT_start", entry.OT_start);
+            command.Parameters.AddWithValue("@OT_end", entry.OT_end);
+            command.Parameters.AddWithValue("@Status_absen", entry.Status_absen);
+            command.Parameters.AddWithValue("@UserId", entry.UserId);
+            command.Parameters.AddWithValue("@NoteId", entry.NoteId);
+            command.Parameters.AddWithValue("@Created_by", entry.Created_by ?? (object)DBNull.Value);
+
+            int entryId = Convert.ToInt32(command.ExecuteScalar());
+            return entryId;
+        }
+
+        public List<DailyEntry> GetByNoteId(int noteId)
+        {
+            using var command = CreateCommand("get_by_note_id");
+            command.Parameters.AddWithValue("@NoteId", noteId);
+
+            using var reader = command.ExecuteReader();
+            List<DailyEntry> entries = new List<DailyEntry>();
+            while (reader.Read())
+            {
+                entries.Add(MapEntry(reader));
+            }
+            return entries;
+        }
+
+        public List<DailyEntry> GetEntriesByNoteId(int noteId)
+        {
+            using var command = CreateCommand("get_list_date");
+            command.Parameters.AddWithValue("@NoteId", noteId);
+
+            using var reader = command.ExecuteReader();
+            List<DailyEntry> entries = new List<DailyEntry>();
+            while (reader.Read())
+            {
+                entries.Add(MapEntry(reader));
+            }
+            return entries;
+        }
+        public List<DailyEntry> GetAllNote(string userId)
+        {
+            using var command = CreateCommand("get_all_entry");
+            command.Parameters.AddWithValue("@UserId", userId);
+
+            using var reader = command.ExecuteReader();
+            List<DailyEntry> entries = new List<DailyEntry>();
+            while (reader.Read())
+            {
+                entries.Add(MapEntry(reader,true));
+            }
+            return entries;
+        }
+
+        public DailyEntry? GetById(int id)
+        {
+            using var command = CreateCommand("get_by_entry_id");
+            command.Parameters.AddWithValue("@Id", id);
+
+            using var reader = command.ExecuteReader();
+            if (reader.Read())
+            {
+                return MapEntry(reader);
+            }
+            return null;
+        }
+
+        public void Update(DailyEntry entry)
+        {
+            using var command = CreateCommand("update_entry");
+            command.Parameters.AddWithValue("@Id", entry.Id);
+            command.Parameters.AddWithValue("@Date", Convert.ToDateTime(entry.Date));
+            command.Parameters.AddWithValue("@Content", entry.Content);
+            command.Parameters.AddWithValue("@Title_Note", entry.Title_Note);
+            command.Parameters.AddWithValue("@WH_start", entry.WH_start);
+            command.Parameters.AddWithValue("@WH_end", entry.WH_end);
+            command.Parameters.AddWithValue("@OT_start", entry.OT_start);
+            command.Parameters.AddWithValue("@OT_end", entry.OT_end);
+            command.Parameters.AddWithValue("@Status_absen", entry.Status_absen);
+            command.Parameters.AddWithValue("@Modified_by", entry.Modified_by ?? (object)DBNull.Value);
+
+            command.ExecuteNonQuery();
+        }
+
+        public void UpdateDate(int id,string date, string modified_by)
+        {
+            using var command = CreateCommand("update_date");
+            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Date", Convert.ToDateTime(date));
+            command.Parameters.AddWithValue("@Modified_by", modified_by ?? (object)DBNull.Value);
+
+            command.ExecuteNonQuery();
+        }
+
+        public void Delete(int id, string? deletedBy)
+        {
+            using var command = CreateCommand("delete");
+            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Deleted_by", deletedBy ?? (object)DBNull.Value);
+
+            command.ExecuteNonQuery();
+        }
+
+        private SqlCommand CreateCommand(string action)
+        {
+            var cmd = _connection.CreateCommand();
+            cmd.Transaction = _transaction;
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.CommandText = "uspNoteDailyEntries";
+            cmd.Parameters.AddWithValue("@action", action);
+            return cmd;
+        }
+
+        public List<DailyEntry> GetAllNoteEntriesPaged(int pageNumber, int pageSize, string sortColumn, string sortDirection, string userId, string? search = null)
+        {
+            var cmd = _connection.CreateCommand();
+            cmd.Transaction = _transaction;
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.CommandText = "uspGetPageAllEntries";
+            cmd.Parameters.AddWithValue("@pageNumber", pageNumber);
+            cmd.Parameters.AddWithValue("@pageSize", pageSize);
+            cmd.Parameters.AddWithValue("@sortColumn", sortColumn);
+            cmd.Parameters.AddWithValue("@sortDirection", sortDirection);
+            cmd.Parameters.AddWithValue("@userId", userId);
+            cmd.Parameters.AddWithValue("@search", search);
+
+            using var reader = cmd.ExecuteReader();
+            List<DailyEntry> result = new List<DailyEntry>();
+            while (reader.Read())
+            {
+                result.Add(MapEntry(reader));
+            }
+            return result;
+        }
+
+        private DailyEntry MapEntry(SqlDataReader reader, bool isTable = false)
+        {
+            return new DailyEntry
+            {
+                Id = Convert.ToInt32(reader["Id"]),
+                Date = reader["Date"] != DBNull.Value ? Convert.ToDateTime(reader["Date"]).ToString("yyyy-MM-dd"): "",
+                Content = reader["Content"]?.ToString(),
+                Title_Note = reader["Title_Note"]?.ToString(),
+                WH_start = reader["WH_start"]?.ToString(),
+                WH_end = reader["WH_end"]?.ToString(),
+                Total_WH = isTable ? reader["Total_WH"]?.ToString(): "",
+                Total_OT = isTable ? reader["Total_OT"]?.ToString(): "",
+                OT_end = reader["OT_end"]?.ToString(),
+                OT_start = reader["OT_start"]?.ToString(),
+                Status_absen = reader["Status_absen"]?.ToString(),
+                UserId = reader["UserId"]?.ToString(),
+                NoteId = Convert.ToInt32(reader["NoteId"]),
+                Created_by = reader["Created_by"]?.ToString(),
+                Created_on = reader["Created_on"] != DBNull.Value ? Convert.ToDateTime(reader["Created_on"].ToString()) : DateTime.Now,
+                Modified_by = reader["Modified_by"]?.ToString(),
+                Modified_on = reader["Modified_on"] as DateTime?,
+                Deleted_by = reader["Deleted_by"]?.ToString(),
+                Deleted_on = reader["Deleted_on"] as DateTime?,
+                Is_delete = Convert.ToBoolean(reader["Is_delete"])
+            };
+        }
+    }
+}
