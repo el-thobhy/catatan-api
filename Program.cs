@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 var sessionTimeout = builder.Configuration.GetSection("SessionSettings:IdleTimeoutMinutes").Get<int>();
-var isDevelopment = builder.Configuration.GetSection("Environtment:IsDevelopment").Get<bool>();
+var isDevelopment = builder.Configuration.GetSection("Environtment:IsDevelopment").Get<string>();
 
 
 builder.Services.AddDistributedMemoryCache();
@@ -121,7 +121,7 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (isDevelopment)
+if (isDevelopment == "true")
 {
     app.UseSwagger();
     app.UseSwaggerUI();
