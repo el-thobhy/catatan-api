@@ -127,11 +127,13 @@ if (isDevelopment)
     app.UseSwaggerUI();
 }
 
+app.UseHttpsRedirection();
+
+app.UseStatusCodePages();
+
 app.UseSession();
 
 app.UseCors();
-
-app.UseHttpsRedirection();
 
 app.UseAuthentication();
 
